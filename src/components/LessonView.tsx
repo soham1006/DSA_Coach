@@ -241,11 +241,7 @@ function LessonView({
         </div>
 
         <div className="min-h-56 p-4 sm:p-6">
-          <Visualizer
-            visualization={
-              lesson.visualization
-            }
-          />
+          <Visualizer lesson={lesson} />
         </div>
 
       </section>

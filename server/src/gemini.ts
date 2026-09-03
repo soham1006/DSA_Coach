@@ -1,328 +1,277 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-
 import { LessonSchema } from "./validation.js";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  throw new Error(
-    "GEMINI_API_KEY is missing from the environment."
-  );
+  throw new Error("GEMINI_API_KEY is missing from the environment.");
 }
 
 const ai = new GoogleGenAI({
   apiKey,
 });
 
-const lessonJsonSchema =
-  z.toJSONSchema(LessonSchema);
+const lessonJsonSchema = z.toJSONSchema(LessonSchema);
 
-
-// ----------------------------------------
-// Gemini request with retry
-// ----------------------------------------
-
-async function generateContentWithRetry(
+async function generateContent(
   model: string,
   contents: string,
   config?: Parameters<
     typeof ai.models.generateContent
   >[0]["config"]
 ) {
-  const maxAttempts = 2;
-
-  for (
-    let attempt = 1;
-    attempt <= maxAttempts;
-    attempt++
-  ) {
-    try {
-      return await ai.models.generateContent({
-        model,
-        contents,
-        config,
-      });
-    } catch (error) {
-      console.error(
-        `Gemini request failed (attempt ${attempt}/${maxAttempts}):`,
-        error
-      );
-
-      if (attempt === maxAttempts) {
-        throw error;
-      }
-
-      // Wait 1 second before retrying
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000)
-      );
-    }
-  }
-
-  throw new Error(
-    "Gemini request failed."
-  );
+  return await ai.models.generateContent({
+    model,
+    contents,
+    config,
+  });
 }
-
-
-// ----------------------------------------
-// Check whether the question is DSA-related
-// ----------------------------------------
-
-export async function isDSAQuestion(
-  prompt: string
-): Promise<boolean> {
-  const response =
-    await generateContentWithRetry(
-      "gemini-3.6-flash",
-
-      `
-Determine whether the following user request is
-related to Data Structures and Algorithms (DSA).
-
-Return ONLY one word:
-
-YES
-
-or
-
-NO
-
-Consider the request DSA-related if it involves
-algorithms, data structures, solving coding problems,
-algorithmic techniques, or programming concepts
-directly related to DSA.
-
-Examples of DSA topics include:
-
-- Arrays
-- Strings
-- Linked Lists
-- Stacks
-- Queues
-- Trees
-- Graphs
-- Heaps
-- Hashing
-- Sorting
-- Searching
-- Binary Search
-- Recursion
-- Backtracking
-- Greedy Algorithms
-- Dynamic Programming
-- Divide and Conquer
-- Shortest Path
-- Minimum Spanning Tree
-- Traversal algorithms
-- Time Complexity
-- Space Complexity
-
-User request:
-
-${prompt}
-`
-    );
-
-  const text =
-    response.text?.trim().toUpperCase();
-
-  return text === "YES";
-}
-
-
-// ----------------------------------------
-// Generate DSA Lesson
-// ----------------------------------------
 
 export async function askGemini(
-  prompt: string
+  prompt: string,
+  language: "cpp" | "java" | "python" | "javascript"
 ) {
-  const response =
-    await generateContentWithRetry(
-      "gemini-3.5-flash",
+  const response = await generateContent(
+    "gemini-3.6-flash",
 
-      `
-You are an expert DSA teacher and algorithm visualization designer.
+    `
+You are DSA_Coach, an expert Data Structures and Algorithms teacher
+and algorithm visualization engine.
 
-Create a complete, beginner-friendly lesson for the user's request.
+Your job is to create an interactive lesson for the user's DSA question.
 
-The lesson will be displayed in an interactive DSA learning application.
+The output is consumed directly by a React application.
 
-IMPORTANT RULES:
+USER QUESTION:
+${prompt}
 
-1. EXPLANATION
+PROGRAMMING LANGUAGE:
+${language}
 
-Do NOT give only a short definition.
+IMPORTANT:
 
-Explain:
-- What the algorithm/data structure is
-- The intuition behind it
-- How it works
-- Why it works
-- When it is useful
+Return ONLY valid JSON matching the supplied JSON schema.
 
-Use simple language suitable for a beginner.
+Do NOT return markdown.
+Do NOT use \`\`\`json.
+Do NOT add text outside JSON.
 
-2. EXAMPLE
+==================================================
+1. DSA ONLY
+==================================================
 
-Provide at least one concrete example.
+The question must be about Data Structures and Algorithms.
 
-The example must actually demonstrate the algorithm.
+If the question is not DSA-related, still return a valid lesson explaining
+that DSA_Coach only supports DSA questions.
 
-Explain what happens in the example.
+==================================================
+2. LESSON
+==================================================
 
-3. APPROACHES
+Create:
 
-Include meaningful approaches when they exist.
+- clear title
+- problem statement
+- constraints
+- examples
+- meaningful approaches
+- recommended approach
+- time complexity
+- space complexity
+- readable source code
 
-For example:
+Use beginner-friendly explanations.
 
-Brute Force
-Optimized Approach
+==================================================
+3. CODE
+==================================================
 
-Explain the idea and complexity of each.
+Generate properly formatted ${language} code.
 
-Mark the best practical approach as recommended.
+The code must contain normal line breaks and indentation.
 
-4. CODE
+IMPORTANT:
 
-Generate properly formatted, readable code.
+The "codeLine" field in every step must correspond to an actual
+1-based line number in this generated source code.
 
-NEVER put the entire program on one line.
+Do not invent line numbers.
 
-Use normal indentation and line breaks.
+==================================================
+4. STEP-BY-STEP EXECUTION
+==================================================
 
-The code MUST be written in the programming language requested by the user.
+This is extremely important.
 
-5. CODE LINES
+Generate REAL execution steps.
 
-Every important execution step must reference the relevant line of the generated code.
+Do NOT create only 3 or 4 generic steps.
 
-Use actual 1-based source-code line numbers.
+For simple algorithms generate approximately 6-12 meaningful steps.
 
-6. STEP-BY-STEP EXPLANATION
+For traversal algorithms generate a step for each important traversal action.
 
-Generate clear execution steps.
+For example, for BFS:
 
-Each step should describe an actual operation.
+Step 1:
+Initialize queue.
 
-Avoid vague steps such as:
+Step 2:
+Start from source node.
 
-"The algorithm continues."
+Step 3:
+Visit source.
 
-Instead explain exactly what changes.
+Step 4:
+Push an unvisited neighbor.
 
-7. VISUALIZATION
+Step 5:
+Visit the next node.
 
-Every lesson must contain a visualization.
+Step 6:
+Continue processing its neighbors.
 
-Choose the visualization type that naturally represents the algorithm.
+Step 7:
+Finish traversal.
 
-Allowed types:
+Each step must describe an actual state change.
 
-- array
-- graph
-- tree
-- linked-list
-- stack
-- queue
-- dp
-- none
+The user must be able to press:
 
-Use "none" only when visualization genuinely does not make sense.
+Previous ← Step → Next
 
-8. ARRAY
+and see the algorithm progress.
+
+==================================================
+5. VISUALIZATION
+==================================================
+
+EVERY STEP MUST HAVE ITS OWN visualization state.
+
+Do NOT simply repeat the same visualization for every step.
+
+The visualization should represent the state AT THAT MOMENT.
+
+The top-level "visualization" should represent the final state.
+
+==================================================
+6. ARRAY
+==================================================
 
 For array algorithms provide:
 
 values
-
 highlightedIndices
+pointers
 
-pointers:
-- low
-- mid
-- high
-- left
-- right
+Use:
 
-Use null when a pointer is not relevant.
+low
+mid
+high
+left
+right
 
-Example:
+Use null when a pointer is not active.
 
-{
-  "type": "array",
-  "data": {
-    "values": [-1, 0, 3, 5, 9, 12],
-    "highlightedIndices": [2],
-    "pointers": {
-      "low": 0,
-      "mid": 2,
-      "high": 5,
-      "left": null,
-      "right": null
-    }
-  }
-}
+For binary search, for example:
 
-9. GRAPH
+Step 1:
+low=0, mid=2, high=5
+
+Step 2:
+low=3, mid=4, high=5
+
+Step 3:
+highlight the examined element.
+
+The array state must actually change between steps.
+
+==================================================
+7. GRAPH
+==================================================
 
 For graph algorithms provide:
 
 nodes
-
 edges
-
 highlightedNodes
-
 highlightedEdges
 
-Include weights when the algorithm uses weighted edges.
+For BFS/DFS:
 
-For BFS/DFS show the nodes being processed.
+- highlight the currently processed node
+- highlight traversal edges
+- show visited nodes progressively
 
-For Dijkstra show relevant weighted edges and processed nodes.
+For Dijkstra:
 
-10. TREE
+- show weighted edges
+- highlight the current node
+- highlight the edge being relaxed
+- progressively show processed nodes
 
-For tree algorithms provide:
+Do NOT show only:
+
+"4 nodes, 5 edges"
+
+The actual nodes, edges and highlights must be present.
+
+==================================================
+8. TREE
+==================================================
+
+Provide:
 
 root
-
 nodes
 
-Each node must contain:
+Every node:
 
 id
 value
 left
 right
 
-Also provide highlightedNodes.
+For traversal:
 
-11. LINKED LIST
+highlight the current node.
 
-Each node must contain:
+Progressively change highlightedNodes.
+
+==================================================
+9. LINKED LIST
+==================================================
+
+Provide:
+
+head
+nodes
+
+Every node:
 
 id
 value
 next
 
-Also provide:
+During traversal highlight the current node.
 
-head
-highlightedNodes
-
-12. STACK
+==================================================
+10. STACK
+==================================================
 
 Provide:
 
 values
 highlightedIndex
 
-13. QUEUE
+Show push/pop/top operations progressively.
+
+==================================================
+11. QUEUE
+==================================================
 
 Provide:
 
@@ -330,7 +279,11 @@ values
 front
 rear
 
-14. DYNAMIC PROGRAMMING
+Show enqueue/dequeue operations progressively.
+
+==================================================
+12. DYNAMIC PROGRAMMING
+==================================================
 
 Provide:
 
@@ -339,85 +292,87 @@ columns
 values
 highlightedCells
 
-Use null for cells that have not yet been calculated.
+Uncalculated cells should be null.
 
-15. STEP VISUALIZATION
+Every DP step should reveal or modify the relevant cell.
 
-Every step MUST have its own visualization state.
+==================================================
+13. VISUALIZATION TYPES
+==================================================
 
-The state must represent what is happening during that specific step.
+Use the most appropriate type:
 
-When the algorithm changes state, the visualization must also change.
+array
+graph
+tree
+linked-list
+stack
+queue
+dp
+none
 
-16. CONSISTENCY
+Prefer a visualization whenever possible.
 
-The following must describe the SAME execution:
+Do NOT use "none" for common DSA algorithms.
 
-- problem example
-- generated code
-- steps
-- visualization
+==================================================
+14. CONSISTENCY
+==================================================
 
-Do not create contradictory information.
+The following MUST describe the same execution:
 
-17. QUIZ
+problem example
+source code
+steps
+visualizations
 
-Do NOT generate a quiz.
+If a step says node A was visited, the visualization must show A.
 
-18. OUTPUT
+If a step says low moved from 0 to 3, the visualization must show low=3.
 
-Return ONLY valid JSON matching the provided schema.
+If a step says an array element is being compared, highlight that index.
 
-Do NOT return markdown.
+==================================================
+15. NO QUIZ
+==================================================
 
-Do NOT return \`\`\`json.
+Do not generate quizzes.
 
-Do NOT add explanations outside the JSON.
+==================================================
+16. QUALITY
+==================================================
 
-USER REQUEST:
+The result should feel like an interactive DSA teaching application,
+not a generic AI answer.
 
-${prompt}
+Prioritize useful execution states over long explanations.
+
+Generate enough steps to demonstrate the algorithm visually.
+
+Return ONLY JSON.
 `,
 
-      {
-        responseMimeType: "application/json",
-        responseJsonSchema:
-          lessonJsonSchema,
-      }
-    );
+    {
+      responseMimeType: "application/json",
+      responseJsonSchema: lessonJsonSchema,
+    }
+  );
 
   const text = response.text;
 
   if (!text) {
-    throw new Error(
-      "Gemini returned an empty response."
-    );
+    throw new Error("Gemini returned an empty response.");
   }
 
-
-  // ----------------------------------------
-  // Parse AI response safely
-  // ----------------------------------------
-
-  let parsedResponse: unknown;
+  let parsed: unknown;
 
   try {
-    parsedResponse = JSON.parse(text);
+    parsed = JSON.parse(text);
   } catch {
-    throw new Error(
-      "The AI returned an invalid lesson format."
-    );
+    throw new Error("The AI returned invalid JSON.");
   }
 
-
-  // ----------------------------------------
-  // Validate lesson against schema
-  // ----------------------------------------
-
-  const result =
-    LessonSchema.safeParse(
-      parsedResponse
-    );
+  const result = LessonSchema.safeParse(parsed);
 
   if (!result.success) {
     console.error(
@@ -429,7 +384,6 @@ ${prompt}
       "The AI returned an incomplete lesson."
     );
   }
-
 
   return result.data;
 }

@@ -21,33 +21,39 @@ const ApproachSchema = z.object({
   recommended: z.boolean(),
 });
 
-/*
- * -----------------------------
- * Visualization schemas
- * -----------------------------
- */
+/* ----------------------------------------
+ * ARRAY
+ * ---------------------------------------- */
 
 const ArrayVisualizationSchema = z.object({
-  values: z.array(z.union([z.string(), z.number()])),
+  values: z.array(
+    z.union([z.string(), z.number()])
+  ),
 
-  highlightedIndices: z.array(z.number()).default([]),
+  highlightedIndices: z
+    .array(z.number())
+    .default([]),
 
   pointers: z
-  .object({
-    low: z.number().nullable().default(null),
-    mid: z.number().nullable().default(null),
-    high: z.number().nullable().default(null),
-    left: z.number().nullable().default(null),
-    right: z.number().nullable().default(null),
-  })
-  .default({
-    low: null,
-    mid: null,
-    high: null,
-    left: null,
-    right: null,
-  }),
+    .object({
+      low: z.number().nullable().default(null),
+      mid: z.number().nullable().default(null),
+      high: z.number().nullable().default(null),
+      left: z.number().nullable().default(null),
+      right: z.number().nullable().default(null),
+    })
+    .default(() => ({
+      low: null,
+      mid: null,
+      high: null,
+      left: null,
+      right: null,
+    })),
 });
+
+/* ----------------------------------------
+ * GRAPH
+ * ---------------------------------------- */
 
 const GraphEdgeSchema = z.object({
   from: z.string(),
@@ -60,7 +66,9 @@ const GraphVisualizationSchema = z.object({
 
   edges: z.array(GraphEdgeSchema),
 
-  highlightedNodes: z.array(z.string()).default([]),
+  highlightedNodes: z
+    .array(z.string())
+    .default([]),
 
   highlightedEdges: z
     .array(
@@ -71,6 +79,10 @@ const GraphVisualizationSchema = z.object({
     )
     .default([]),
 });
+
+/* ----------------------------------------
+ * TREE
+ * ---------------------------------------- */
 
 const TreeNodeSchema = z.object({
   id: z.string(),
@@ -84,8 +96,14 @@ const TreeVisualizationSchema = z.object({
 
   nodes: z.array(TreeNodeSchema),
 
-  highlightedNodes: z.array(z.string()).default([]),
+  highlightedNodes: z
+    .array(z.string())
+    .default([]),
 });
+
+/* ----------------------------------------
+ * LINKED LIST
+ * ---------------------------------------- */
 
 const LinkedListNodeSchema = z.object({
   id: z.string(),
@@ -98,22 +116,43 @@ const LinkedListVisualizationSchema = z.object({
 
   nodes: z.array(LinkedListNodeSchema),
 
-  highlightedNodes: z.array(z.string()).default([]),
+  highlightedNodes: z
+    .array(z.string())
+    .default([]),
 });
+
+/* ----------------------------------------
+ * STACK
+ * ---------------------------------------- */
 
 const StackVisualizationSchema = z.object({
-  values: z.array(z.union([z.string(), z.number()])),
+  values: z.array(
+    z.union([z.string(), z.number()])
+  ),
 
-  highlightedIndex: z.number().nullable().default(null),
+  highlightedIndex: z
+    .number()
+    .nullable()
+    .default(null),
 });
 
+/* ----------------------------------------
+ * QUEUE
+ * ---------------------------------------- */
+
 const QueueVisualizationSchema = z.object({
-  values: z.array(z.union([z.string(), z.number()])),
+  values: z.array(
+    z.union([z.string(), z.number()])
+  ),
 
   front: z.number().nullable().default(null),
 
   rear: z.number().nullable().default(null),
 });
+
+/* ----------------------------------------
+ * DYNAMIC PROGRAMMING
+ * ---------------------------------------- */
 
 const DPVisualizationSchema = z.object({
   rows: z.number().int().nonnegative(),
@@ -121,22 +160,28 @@ const DPVisualizationSchema = z.object({
   columns: z.number().int().nonnegative(),
 
   values: z.array(
-    z.array(z.union([z.string(), z.number(), z.null()]))
+    z.array(
+      z.union([
+        z.string(),
+        z.number(),
+        z.null(),
+      ])
+    )
   ),
 
-  highlightedCells: z.array(
-    z.object({
-      row: z.number(),
-      column: z.number(),
-    })
-  ).default([]),
+  highlightedCells: z
+    .array(
+      z.object({
+        row: z.number(),
+        column: z.number(),
+      })
+    )
+    .default([]),
 });
 
-/*
- * -----------------------------
- * Generic visualization
- * -----------------------------
- */
+/* ----------------------------------------
+ * VISUALIZATION
+ * ---------------------------------------- */
 
 const VisualizationSchema = z.discriminatedUnion(
   "type",
@@ -183,11 +228,9 @@ const VisualizationSchema = z.discriminatedUnion(
   ]
 );
 
-/*
- * -----------------------------
- * Step
- * -----------------------------
- */
+/* ----------------------------------------
+ * STEP
+ * ---------------------------------------- */
 
 const StepSchema = z.object({
   title: z.string(),
@@ -199,11 +242,9 @@ const StepSchema = z.object({
   visualization: VisualizationSchema,
 });
 
-/*
- * -----------------------------
- * Lesson
- * -----------------------------
- */
+/* ----------------------------------------
+ * LESSON
+ * ---------------------------------------- */
 
 export const LessonSchema = z.object({
   title: z.string(),
@@ -229,4 +270,6 @@ export const LessonSchema = z.object({
   visualization: VisualizationSchema,
 });
 
-export type Lesson = z.infer<typeof LessonSchema>;
+export type Lesson = z.infer<
+  typeof LessonSchema
+>;
