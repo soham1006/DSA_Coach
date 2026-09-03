@@ -109,7 +109,7 @@ The goal of DSA_Coach is to make learning algorithms more visual and interactive
 
 ## Demo
 
-[Watch the Demo Video](https://drive.google.com/file/d/1AFiUz4Y_LSwqX2UtfWATfDTPtElpxzih/view?usp=sharing)
+[Watch the Demo Video](https://drive.google.com/file/d/1CN6n3KGOENfdzCkZigRUe-JJL4cJfTY1/view?usp=sharing)
 
 ## Author
 
